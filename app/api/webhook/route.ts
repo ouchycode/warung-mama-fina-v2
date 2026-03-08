@@ -1,55 +1,92 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; // Pastikan file lib/prisma.ts sudah ada [cite: 2026-03-08]
+import prisma from "@/lib/prisma";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    // Log untuk memantau status dari Midtrans
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+
     console.log(
       "🔔 Log Midtrans Masuk:",
       data.order_id,
       data.transaction_status,
     );
 
-    if (
-      data.transaction_status === "settlement" ||
-      data.transaction_status === "capture"
-    ) {
-      const orderId = data.order_id;
-      const grossAmount = data.gross_amount;
+    const orderId = data.order_id;
+    const transactionStatus = data.transaction_status;
+    const grossAmount = data.gross_amount;
 
-      // --- 1. UPDATE DATABASE (Status & Stok) --- [cite: 2026-02-08, 2026-03-08]
+    // =========================
+    // 1️⃣ VERIFY SIGNATURE MIDTRANS
+    // =========================
+    const signature = crypto
+      .createHash("sha512")
+      .update(orderId + data.status_code + grossAmount + serverKey)
+      .digest("hex");
 
-      // Update status pesanan di tabel Order [cite: 2026-02-08]
-      await prisma.order.update({
+    if (signature !== data.signature_key) {
+      console.log("❌ Signature Midtrans tidak valid");
+      return NextResponse.json({ success: false });
+    }
+
+    // =========================
+    // 2️⃣ CEK STATUS PEMBAYARAN
+    // =========================
+    if (transactionStatus === "settlement" || transactionStatus === "capture") {
+      // =========================
+      // 3️⃣ AMBIL ORDER
+      // =========================
+      const order = await prisma.order.findUnique({
         where: { id: orderId },
-        data: { status: "success" },
       });
 
-      // Potong stok barang berdasarkan item yang dibeli [cite: 2026-02-08, 2026-03-08]
-      // Midtrans mengirim detail barang di metadata atau custom_field jika kamu mengaturnya di frontend
-      // Jika kamu mengirim item_details saat create transaction, gunakan loop ini:
-      if (data.item_details) {
-        for (const item of data.item_details) {
-          await prisma.product.update({
+      if (!order) {
+        console.log("❌ Order tidak ditemukan:", orderId);
+        return NextResponse.json({ success: false });
+      }
+
+      // cegah webhook ganda
+      if (order.status === "success") {
+        console.log("⚠️ Webhook duplikat diabaikan");
+        return NextResponse.json({ success: true });
+      }
+
+      const items = order.items as any[];
+
+      // =========================
+      // 4️⃣ TRANSACTION DATABASE
+      // =========================
+      await prisma.$transaction(async (tx) => {
+        // update order
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "success" },
+        });
+
+        // kurangi stok
+        for (const item of items) {
+          await tx.product.update({
             where: { id: item.id },
             data: {
               stock: {
-                decrement: parseInt(item.quantity), // Potong stok sesuai jumlah beli [cite: 2026-02-08]
+                decrement: Number(item.quantity),
               },
             },
           });
         }
-      }
+      });
 
-      // --- 2. KIRIM NOTIFIKASI WHATSAPP (Fonnte) --- [cite: 2026-02-08]
+      console.log("✅ Stok berhasil dikurangi");
 
+      // =========================
+      // 5️⃣ KIRIM WHATSAPP
+      // =========================
       const rawPhone = data.customer_details?.phone || "6281219334093";
       const formattedPhone = rawPhone.replace(/^0/, "62");
 
       const token = process.env.FONNTE_TOKEN;
-      if (!token) throw new Error("FONNTE_TOKEN is missing in Vercel!");
 
       const sendWA = async (target: string, message: string) => {
         const formData = new URLSearchParams();
@@ -59,32 +96,34 @@ export async function POST(request: Request) {
         const response = await fetch("https://api.fonnte.com/send", {
           method: "POST",
           headers: {
-            Authorization: token,
+            Authorization: token!,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: formData.toString(),
         });
+
         return await response.json();
       };
 
-      // Notif ke Mama Fina
-      const resPenjual = await sendWA(
+      // notif penjual
+      await sendWA(
         "6281219334093",
-        `🚨 *PESANAN BARU LUNAS*\n\nOrder: ${orderId}\nTotal: Rp ${grossAmount}\n\nStok sudah otomatis berkurang. Segera siapkan pesanannya ya, Ma! ✨`,
+        `🚨 *PESANAN BARU LUNAS*\n\nOrder: ${orderId}\nTotal: Rp ${grossAmount}\n\nStok sudah otomatis berkurang.`,
       );
-      console.log("🤖 Status WA Penjual:", resPenjual);
 
-      // Notif ke Pembeli
-      const resPembeli = await sendWA(
+      // notif pembeli
+      await sendWA(
         formattedPhone,
-        `Halo! Pembayaran untuk Order *${orderId}* sebesar *Rp ${grossAmount}* sudah kami terima. Pesanan sedang disiapkan! 😊📦`,
+        `Halo! Pembayaran untuk Order *${orderId}* sebesar *Rp ${grossAmount}* sudah kami terima. Pesanan sedang disiapkan! 😊`,
       );
-      console.log("🤖 Status WA Pembeli:", resPembeli);
     }
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("❌ WEBHOOK ERROR:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
