@@ -4,7 +4,9 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    // Logika: Hanya kirim WA jika statusnya settlement (Lunas)
+    console.log("🔔 ADA WEBHOOK MASUK DARI MIDTRANS:", data.transaction_status);
+
+    // 1. Logika: Hanya kirim WA jika statusnya settlement atau capture (Lunas)
     if (
       data.transaction_status === "settlement" ||
       data.transaction_status === "capture"
@@ -12,20 +14,25 @@ export async function POST(request: Request) {
       const orderId = data.order_id;
       const grossAmount = data.gross_amount;
 
-      // MENGAMBIL NOMOR DARI MIDTRANS
-      // Midtrans biasanya mengirim data pembeli di dalam objek customer_details
-      const customerPhone = data.customer_details?.phone || "081219334093";
+      // 2. MENGAMBIL NOMOR DARI MIDTRANS
+      const rawPhone = data.customer_details?.phone || "081219334093";
+
+      // 3. LOGIKA MEMBERSIHKAN NOMOR (Ubah 0 ke 62 agar Fonnte lancar)
+      const formattedPhone = rawPhone.replace(/^0/, "62");
 
       const fonnteToken = process.env.FONNTE_TOKEN;
 
       if (!fonnteToken) {
+        console.error(
+          "❌ ERROR: FONNTE_TOKEN tidak ditemukan di Environment Variables",
+        );
         return NextResponse.json(
           { success: false, message: "Token missing" },
           { status: 500 },
         );
       }
 
-      // 1. KIRIM KE MAMA FINA (PENJUAL)
+      // 4. KIRIM KE MAMA FINA (PENJUAL)
       await fetch("https://api.fonnte.com/send", {
         method: "POST",
         headers: { Authorization: fonnteToken },
@@ -35,12 +42,12 @@ export async function POST(request: Request) {
         }).toString(),
       });
 
-      // 2. KIRIM KE PEMBELI (OTOMATIS)
+      // 5. KIRIM KE PEMBELI (OTOMATIS)
       await fetch("https://api.fonnte.com/send", {
         method: "POST",
         headers: { Authorization: fonnteToken },
         body: new URLSearchParams({
-          target: customerPhone, // Nomor dinamis yang diambil dari data Midtrans
+          target: formattedPhone, // Nomor pembeli yang sudah diformat
           message: `Halo! Terima kasih sudah belanja di *Warung Mama Fina* 🙏✨\n\nPembayaran untuk Order *${orderId}* sebesar *Rp ${grossAmount}* sudah kami terima.\n\nSabar ya, pesanan kamu sedang kami siapkan! 😊📦`,
         }).toString(),
       });
@@ -48,6 +55,7 @@ export async function POST(request: Request) {
       console.log("✅ Robot WA berhasil kirim pesan ke Penjual & Pembeli!");
     }
 
+    // Wajib balas Midtrans dengan status 200 OK agar tidak dianggap Gagal
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Webhook Error:", error);
