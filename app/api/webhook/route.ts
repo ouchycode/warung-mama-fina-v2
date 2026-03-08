@@ -15,13 +15,25 @@ export async function POST(request: Request) {
       const orderId = data.order_id;
       const grossAmount = data.gross_amount;
 
+      // 3. Ambil token dari environment variable
+      const fonnteToken = process.env.FONNTE_TOKEN;
+
+      if (!fonnteToken) {
+        console.error("❌ ERROR: Token Fonnte belum dipasang di .env.local");
+        return NextResponse.json(
+          { success: false, message: "Server configuration error" },
+          { status: 500 },
+        );
+      }
+
+      // 4. Kirim WA Otomatis melalui Fonnte
       await fetch("https://api.fonnte.com/send", {
         method: "POST",
         headers: {
-          Authorization: "op7w5SAaj3yRxBHUhU2A",
+          Authorization: fonnteToken,
         },
         body: new URLSearchParams({
-          target: "081219334093",
+          target: "081219334093", // Nomor Mama Fina
           message: `🚨 *PESANAN BARU LUNAS (Sistem Otomatis)* 🚨\n\nOrder ID: ${orderId}\nTotal Bayar: Rp ${grossAmount}\n\nPembayaran via Midtrans telah divalidasi. Mohon segera siapkan barangnya, Ma! 📦✨`,
         }),
       });
@@ -29,7 +41,7 @@ export async function POST(request: Request) {
       console.log("✅ WA OTOMATIS BERHASIL DIKIRIM KE MAMA FINA!");
     }
 
-    // Wajib balas Midtrans dengan status 200 OK agar Midtrans tahu laporan sudah diterima
+    // Wajib balas Midtrans dengan status 200 OK
     return NextResponse.json(
       { success: true, message: "Webhook received" },
       { status: 200 },

@@ -43,7 +43,7 @@ export default function SuccessPage() {
     "Halo Mama Fina! 🙋‍♂️\n\nSaya baru saja melakukan pembayaran pesanan via Web (Midtrans). Mohon segera dicek dan diproses ya pesanannya. Terima kasih! 📦✨",
   );
   // Ganti nomor ini dengan nomor WA yang mau di-demo-kan (Gunakan 62 sebagai pengganti 0)
-  const waLink = `https://wa.me/628129334093?text=${waMessage}`;
+  const waLink = `https://wa.me/6281219334093?text=${waMessage}`;
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
