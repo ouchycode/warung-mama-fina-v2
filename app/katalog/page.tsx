@@ -1,4 +1,4 @@
-// File: app/katalog/page.tsx (atau lokasi KatalogPage kamu)
+export const dynamic = "force-dynamic";
 import ProductGrid from "@/components/ProductGrid";
 import { prisma } from "@/lib/prisma"; // Mengambil instance Prisma [cite: 2026-03-08]
 
