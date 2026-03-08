@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
 export async function POST(request: Request) {
-  // Kita kembalikan untuk membaca kunci dari .env.local
   const serverKey = process.env.MIDTRANS_SERVER_KEY;
 
   try {
@@ -11,6 +11,17 @@ export async function POST(request: Request) {
 
     const grossAmount = Math.round(Number(amount));
     const orderId = `MAMAFINA-${Date.now()}`;
+
+    // ✅ SIMPAN ORDER KE DATABASE
+    await prisma.order.create({
+      data: {
+        id: orderId,
+        customerName,
+        customerPhone,
+        totalAmount: grossAmount,
+        status: "pending",
+      },
+    });
 
     const payload = {
       transaction_details: {
@@ -48,6 +59,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, token: data.token });
   } catch (error: any) {
+    console.error("CHECKOUT ERROR:", error);
+
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 },
