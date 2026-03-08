@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Pastikan file lib/prisma.ts sudah ada [cite: 2026-03-08]
+import prisma from "@/lib/prisma"; // Pastikan file lib/prisma.ts sudah ada [cite: 2026-03-08]
 
 export async function POST(request: Request) {
   try {

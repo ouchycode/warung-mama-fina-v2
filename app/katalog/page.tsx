@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import ProductGrid from "@/components/ProductGrid";
-import { prisma } from "@/lib/prisma"; // Mengambil instance Prisma [cite: 2026-03-08]
+import prisma from "@/lib/prisma"; // Mengambil instance Prisma [cite: 2026-03-08]
 
 export default async function KatalogPage() {
   // Ambil data produk secara real-time dari Supabase [cite: 2026-02-08, 2026-03-08]
