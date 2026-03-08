@@ -4,7 +4,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    // Log awal untuk memastikan Midtrans berhasil memanggil server
+    // Log untuk memantau status dari Midtrans
     console.log(
       "🔔 Log Midtrans Masuk:",
       data.order_id,
@@ -17,39 +17,45 @@ export async function POST(request: Request) {
     ) {
       const orderId = data.order_id;
       const grossAmount = data.gross_amount;
+
+      // Ambil nomor pembeli, bersihkan angka 0 di depan jadi 62
       const rawPhone = data.customer_details?.phone || "081219334093";
       const formattedPhone = rawPhone.replace(/^0/, "62");
 
       const token = process.env.FONNTE_TOKEN;
       if (!token) throw new Error("FONNTE_TOKEN is missing in Vercel!");
 
-      // 1. Notif Penjual
-      const resPenjual = await fetch("https://api.fonnte.com/send", {
-        method: "POST",
-        headers: { Authorization: token },
-        body: new URLSearchParams({
-          target: "6281219334093",
-          message: `🚨 *PESANAN BARU LUNAS*\nOrder: ${orderId}\nTotal: Rp ${grossAmount}`,
-        }).toString(),
-      });
+      // FUNGSI HELPER UNTUK KIRIM WA (Mencegah 'empty body' error)
+      const sendWA = async (target: string, message: string) => {
+        const formData = new URLSearchParams();
+        formData.append("target", target);
+        formData.append("message", message);
 
-      // TARO DI SINI: Console log untuk cek respon Fonnte buat penjual
-      const hasilPenjual = await resPenjual.json();
-      console.log("🤖 Status Kirim WA Penjual:", hasilPenjual);
+        const response = await fetch("https://api.fonnte.com/send", {
+          method: "POST",
+          headers: {
+            Authorization: token,
+            // Header ini penting agar Fonnte tahu ada isi datanya
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData.toString(),
+        });
+        return await response.json();
+      };
 
-      // 2. Notif Pembeli
-      const resPembeli = await fetch("https://api.fonnte.com/send", {
-        method: "POST",
-        headers: { Authorization: token },
-        body: new URLSearchParams({
-          target: formattedPhone,
-          message: `Halo! Pembayaran ${orderId} sudah kami terima. Pesanan sedang disiapkan! 😊`,
-        }).toString(),
-      });
+      // 1. Kirim ke Mama Fina (Penjual)
+      const resPenjual = await sendWA(
+        "6281219334093",
+        `🚨 *PESANAN BARU LUNAS*\n\nOrder: ${orderId}\nTotal: Rp ${grossAmount}\n\nSegera siapkan pesanannya ya, Ma! ✨`,
+      );
+      console.log("🤖 Status WA Penjual:", resPenjual);
 
-      // TARO DI SINI: Console log untuk cek respon Fonnte buat pembeli
-      const hasilPembeli = await resPembeli.json();
-      console.log("🤖 Status Kirim WA Pembeli:", hasilPembeli);
+      // 2. Kirim ke Pembeli (Otomatis)
+      const resPembeli = await sendWA(
+        formattedPhone,
+        `Halo! Pembayaran untuk Order *${orderId}* sebesar *Rp ${grossAmount}* sudah kami terima. Pesanan sedang disiapkan! 😊📦`,
+      );
+      console.log("🤖 Status WA Pembeli:", resPembeli);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
