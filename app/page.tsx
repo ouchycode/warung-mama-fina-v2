@@ -1,4 +1,5 @@
-// File: app/page.tsx
+export const dynamic = "force-dynamic";
+
 import Hero from "@/components/Hero";
 import ProductGrid from "@/components/ProductGrid";
 import { prisma } from "@/lib/prisma"; // Pastikan kamu sudah buat file lib/prisma.ts [cite: 2026-03-08]
