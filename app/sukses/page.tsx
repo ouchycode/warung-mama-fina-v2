@@ -6,7 +6,6 @@ import { CheckCircle2, MessageCircle, Home, Receipt } from "lucide-react";
 import confetti from "canvas-confetti";
 
 export default function SuccessPage() {
-  // Efek Confetti Meledak saat halaman dibuka
   useEffect(() => {
     const duration = 3 * 1000;
     const animationEnd = Date.now() + duration;
@@ -17,19 +16,14 @@ export default function SuccessPage() {
 
     const interval: any = setInterval(function () {
       const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
+      if (timeLeft <= 0) return clearInterval(interval);
 
       const particleCount = 50 * (timeLeft / duration);
-      // Confetti dari kiri
       confetti({
         ...defaults,
         particleCount,
         origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
       });
-      // Confetti dari kanan
       confetti({
         ...defaults,
         particleCount,
@@ -38,17 +32,15 @@ export default function SuccessPage() {
     }, 250);
   }, []);
 
-  // Format Pesan WhatsApp Otomatis
+  // Ubah pesan menjadi lebih umum untuk bantuan/pertanyaan
   const waMessage = encodeURIComponent(
-    "Halo Mama Fina! 🙋‍♂️\n\nSaya baru saja melakukan pembayaran pesanan via Web (Midtrans). Mohon segera dicek dan diproses ya pesanannya. Terima kasih! 📦✨",
+    "Halo Mama Fina! 🙋‍♂️\n\nSaya sudah melakukan pembayaran. Jika ada kendala atau pertanyaan mengenai pesanan saya, saya hubungi lewat sini ya. Terima kasih! ✨",
   );
-  // Ganti nomor ini dengan nomor WA yang mau di-demo-kan (Gunakan 62 sebagai pengganti 0)
   const waLink = `https://wa.me/6281219334093?text=${waMessage}`;
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 md:p-10 text-center relative overflow-hidden border border-slate-100">
-        {/* Ikon Sukses Animasi */}
         <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
           <CheckCircle2 className="w-12 h-12 text-emerald-600" />
         </div>
@@ -57,11 +49,10 @@ export default function SuccessPage() {
           Hore! Berhasil 🎉
         </h1>
         <p className="text-slate-500 mb-8 leading-relaxed">
-          Pembayaran kamu telah diverifikasi oleh sistem. Pesanan sedang
-          disiapkan oleh Warung Mama Fina.
+          Pembayaran kamu telah diverifikasi. **Pesan konfirmasi otomatis telah
+          dikirim ke WhatsApp kamu.**
         </p>
 
-        {/* Kotak Resi Sederhana */}
         <div className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100 text-left">
           <div className="flex items-center gap-3 mb-2">
             <Receipt className="w-5 h-5 text-emerald-600" />
@@ -74,8 +65,8 @@ export default function SuccessPage() {
           </p>
         </div>
 
-        {/* Tombol Aksi */}
         <div className="flex flex-col gap-3">
+          {/* Tombol diubah menjadi Hubungi Bantuan/Tanya Penjual */}
           <a
             href={waLink}
             target="_blank"
@@ -83,7 +74,7 @@ export default function SuccessPage() {
             className="w-full flex items-center justify-center gap-2 py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/30 active:scale-95"
           >
             <MessageCircle className="w-5 h-5" />
-            Kabari Mama Fina (WhatsApp)
+            Tanya Penjual (WhatsApp)
           </a>
 
           <Link
